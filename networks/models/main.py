@@ -24,22 +24,25 @@ flags.DEFINE_string("checkpoint_dir", "checkpoints", "Directory name to save the
 flags.DEFINE_string("experiment", "run_0", "Tensorboard run directory name [run_0]")
 flags.DEFINE_boolean("save_every_step", False, "Save a checkpoint after every step [False]")
 flags.DEFINE_boolean("verbose", True, "print loss on every step [False]")
+flags.DEFINE_integer("num_gpus", -1, "Number of GPUs to use to train GAN. [-1]. -1 means use all available GPUs.")
 config = flags.FLAGS
 
-def main(_):
 
+def main(_):
     pprint.PrettyPrinter().pprint(config.__flags)
     train.train_dcgan(get_data(), config)
+
 
 def get_data():
     data = np.load(config.datafile, mmap_mode='r')
 
     if config.data_format == 'NHWC':
         data = np.expand_dims(data, axis=-1)
-    else: # 'NCHW'
+    else:  # 'NCHW'
         data = np.expand_dims(data, axis=1)
 
     return data
+
 
 if __name__ == '__main__':
     tf.app.run()
