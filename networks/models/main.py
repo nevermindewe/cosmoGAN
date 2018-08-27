@@ -28,8 +28,20 @@ flags.DEFINE_integer("num_gpus", -1, "Number of GPUs to use to train GAN. [-1]. 
 config = flags.FLAGS
 
 
-def main(_):
-    pprint.PrettyPrinter().pprint(config.__flags)
+def main(**config_kwargs):
+    import sys
+    # config_kwargs are the default arguments for everything.
+    # These can be overridden by anything specified on the command-line
+    for k, v in config_kwargs.iteritems():
+        try:
+            config[k].value = v
+        except flags.UnrecognizedFlagError:
+            pass
+
+    # Now override the defaults from anything specified on the command-line
+    args = flags.FLAGS(sys.argv, known_only=False)
+    
+    pprint.PrettyPrinter().pprint({k: config[k].value for k in config.__flags })
     train.train_dcgan(get_data(), config)
 
 

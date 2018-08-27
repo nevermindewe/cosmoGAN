@@ -77,7 +77,6 @@ class DCGAN(object):
                         with tf.variable_scope("generator"):
                             g_images = self.generator(z_images, is_training=True)
 
-                        print >>sys.stderr, "SHAPES:", g_images.shape, images.shape, z_images.shape, self.batch_size, self.compute_devices
                         with tf.variable_scope("discriminator") as d_scope:
                             d_scope.reuse_variables()
                             d_prob_fake, d_logits_fake = self.discriminator(g_images, is_training=True)
@@ -92,9 +91,15 @@ class DCGAN(object):
                             with tf.name_scope("g"):
                                 g_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=d_logits_fake, labels=tf.ones_like(d_logits_fake)))
 
+                        # Each tower should reuse the same variables
+                        #   across towers so that when we apply the 
+                        #   averaged gradients, we only have to update each variable
+                        #   once, instead of each variable per tower.
+                        tf.get_variable_scope().reuse_variables()
+                        
                         t_vars = tf.trainable_variables()
-                        d_vars = [var for var in t_vars if 'discriminator/' in var.name and "gradients" in var.name]
-                        g_vars = [var for var in t_vars if 'generator/' in var.name and "gradients" in var.names]
+                        d_vars = [var for var in t_vars if 'discriminator/' in var.name]
+                        g_vars = [var for var in t_vars if 'generator/' in var.name]
 
                         d_gradients, g_gradients = self.compute_gradients(d_loss, g_loss, d_vars, g_vars)
                         tower_d_gradients.append(d_gradients)
@@ -105,7 +110,15 @@ class DCGAN(object):
         # I think so.
         g_grads_vars = average_gradients(tower_g_gradients)
         d_grads_vars = average_gradients(tower_d_gradients)
-                        
+
+        # FIXME: These variables should be removed once I figure out how to make them
+        #   available through the summary.
+        # FIXME: These variables only hold the last result from the data-parallel GPU
+        #   operations. 
+        self.d_loss_fake = d_loss_fake
+        self.d_loss_real = d_loss_real
+        self.g_loss = g_loss
+        
         self.d_summary = tf.summary.merge([tf.summary.histogram("prob/real", d_prob_real),
                                            tf.summary.histogram("prob/fake", d_prob_fake),
                                            tf.summary.scalar("loss/real", d_loss_real),
@@ -158,7 +171,7 @@ class DCGAN(object):
 
         return d_optim, g_optim
 
-    def apply_gradients(g_grads_vars, d_grads_vars):
+    def apply_gradients(self, g_grads_vars, d_grads_vars):
         return tf.group(self.g_optim.apply_gradients(g_grads_vars),
                         self.d_optim.apply_gradients(d_grads_vars, global_step=self.global_step))
 
@@ -173,8 +186,6 @@ class DCGAN(object):
 
         chain = h0
 
-        print >>sys.stderr, "chain shape:", chain.shape
-        
         for h in range(1, self.ng_layers):
             map_size *= self.stride
             num_channels /= 2

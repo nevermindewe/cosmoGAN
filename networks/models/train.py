@@ -29,7 +29,7 @@ def train_dcgan(data, config):
         save_every_step = True if config.save_every_step == 'True' else False
 
         g_grads_vars, d_grads_vars = gan.training_graph()
-        update_op = self.apply_gradients(g_grads_vars, d_grads_vars)
+        update_op = gan.apply_gradients(g_grads_vars, d_grads_vars)
 
         checkpoint_dir = os.path.join(config.checkpoint_dir, config.experiment)
 
@@ -66,11 +66,11 @@ def train_dcgan(data, config):
                         errD_real = gan.d_loss_real.eval({gan.images: batch_images})
                         errG = gan.g_loss.eval()
 
-                        print("Epoch: [%2d] Step: [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f"
-                              % (epoch, idx, num_batches, time.time() - start_time, errD_fake + errD_real, errG))
+                        print ("Epoch: [%2d] Step: [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f"
+                               % (epoch, idx, num_batches, time.time() - start_time, errD_fake + errD_real, errG))
 
                     elif global_step % 100 == 0:
-                        print("Epoch: [%2d] Step: [%4d/%4d] time: %4.4f" % (epoch, idx, num_batches, time.time() - start_time))
+                        print "Epoch: [%2d] Step: [%4d/%4d] time: %4.4f" % (epoch, idx, num_batches, time.time() - start_time)
 
                 # save a checkpoint every epoch
                 save_checkpoint(sess, gan.saver, 'dcgan', checkpoint_dir, epoch)

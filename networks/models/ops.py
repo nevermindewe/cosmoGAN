@@ -1,3 +1,5 @@
+from collections import defaultdict
+import itertools
 from pprint import pprint
 import sys
 
@@ -96,16 +98,23 @@ def average_gradients(tower_grads):
      List of pairs of (gradient, variable) where the gradient has been averaged
      across all towers.
     """
-    pprint(tower_grads, sys.stderr)
+    # The variables we get might not have a match from each tower
+    #   or the variable order from each tower may not be the same.
+    # So, we need to do our own grouping here.
+    grouped_vars = defaultdict(list)
+    for grad_and_var in itertools.chain(*tower_grads):
+        # Remove just the "tower_N/" part of the variable name.
+        grouped_var_name = '/'.join(grad_and_var[1].name.split("/")[1:])
+        grouped_vars[grouped_var_name].append(grad_and_var)
+    
     average_grads = []
-    for grad_and_vars in zip(*tower_grads):
+    for grad_and_vars in grouped_vars.itervalues():
         # Note that each grad_and_vars looks like the following:
         #   ((grad0_gpu0, var0_gpu0), ... , (grad0_gpuN, var0_gpuN))
         grads = []
         for g, _ in grad_and_vars:
-            print >>sys.stderr, "var name:", _.name, _
             if g is None:
-                pass
+                continue
             # Add 0 dimension to the gradients to represent the tower.
             expanded_g = tf.expand_dims(g, 0)
 
@@ -119,6 +128,7 @@ def average_gradients(tower_grads):
         # Keep in mind that the Variables are redundant because they are shared
         # across towers. So .. we will just return the first tower's pointer to
         # the Variable.
+        # FIXME: This may not be true for the cosmoGAN towers
         v = grad_and_vars[0][1]
         grad_and_var = (grad, v)
         average_grads.append(grad_and_var)
