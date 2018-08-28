@@ -31,8 +31,25 @@ config_kwargs['experiment'] = ('cosmo_myExp_batchSize%i_flipLabel%0.3f_nd%i_ng%i
 if __name__ == "__main__":
     import models.main
     import sys
-    
-    if not os.path.isdir('output'):
-        os.mkdir('output')
 
-    models.main.main(**config_kwargs)
+    # The default is to log stdout to an output file.
+    # Only if the user gives the "--stdout" command line option
+    #   should we display stdout to the real stdout.
+    _old_stdout = sys.stdout
+    _new_stdout = sys.stdout
+
+    if "--stdout" in sys.argv:
+        sys.argv.remove("--stdout")
+
+    else:        
+        if not os.path.isdir('output'):
+            os.mkdir('output')
+            
+        _new_stdout = open(os.path.join("output", config_kwargs['experiment']), 'wb')
+        
+
+    try:
+        sys.stdout = _new_stdout
+        models.main.main(**config_kwargs)
+    finally:
+        sys.stdout = _old_stdout
